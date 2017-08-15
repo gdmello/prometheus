@@ -300,7 +300,7 @@ func sendSamples(w writer, samples model.Samples) {
 	err := w.Write(samples)
 	duration := time.Since(begin).Seconds()
 	if err != nil {
-		log.Errorln(">>>>>>>>>>>>>> About to write data send Samples Error ... ", err)
+		log.Errorln("Error sending samples: ", err)
 		log.With("num_samples", len(samples)).With("storage", w.Name()).With("err", err).Warnf("Error sending samples to remote storage")
 		failedSamples.WithLabelValues(w.Name()).Add(float64(len(samples)))
 	}

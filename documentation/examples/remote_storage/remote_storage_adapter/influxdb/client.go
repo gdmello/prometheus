@@ -107,7 +107,6 @@ func _createDatabase(c *Client) error {
 // Write sends a batch of samples to InfluxDB via its HTTP API.
 func (c *Client) Write(samples model.Samples) error {
 	points := make([]*influx.Point, 0, len(samples))
-	log.Info(">>>>>>>>>>>>>> Writing samples to InfluxDB ... ")
 	for _, s := range samples {
 		v := float64(s.Value)
 		if math.IsNaN(v) || math.IsInf(v, 0) {
@@ -141,7 +140,6 @@ func (c *Client) Write(samples model.Samples) error {
 
 func (c *Client) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) {
 	labelsToSeries := map[string]*remote.TimeSeries{}
-	log.Info(">>>>>>>>>>>>>> Reading samples from InfluxDB ... ")
 	for _, q := range req.Queries {
 		command, err := c.buildCommand(q)
 		if err != nil {
