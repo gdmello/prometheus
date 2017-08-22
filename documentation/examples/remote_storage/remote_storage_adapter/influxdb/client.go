@@ -23,8 +23,10 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/matryer/try"
 
 	influx "github.com/influxdata/influxdb/client/v2"
+	"time"
 )
 
 // Client allows sending batches of Prometheus samples to InfluxDB.
@@ -43,7 +45,7 @@ func NewClient(conf influx.HTTPConfig, db string, rp string) *Client {
 		log.Fatal(err)
 	}
 
-	return &Client{
+	client := &Client{
 		client:          c,
 		database:        db,
 		retentionPolicy: rp,
@@ -54,6 +56,9 @@ func NewClient(conf influx.HTTPConfig, db string, rp string) *Client {
 			},
 		),
 	}
+
+	createDatabase(client)
+	return client
 }
 
 // tagsFromMetric extracts InfluxDB tags from a Prometheus metric.
@@ -65,6 +70,38 @@ func tagsFromMetric(m model.Metric) map[string]string {
 		}
 	}
 	return tags
+}
+
+func createDatabase(c *Client) {
+	log.Infof("About to create database %s ...", c.database)
+	err := try.Do(func(attempt int) (bool, error) {
+		var err error
+		err = _createDatabase(c)
+		log.Info("Error creating database ... retrying.")
+		if err != nil {
+			time.Sleep(5 * time.Second) // wait 5 seconds
+		  }
+		return attempt < 5, err
+	})
+	if err != nil {
+		log.Errorln("error creating database:", err)
+	}
+	log.Infof("About to create database %s done.", c.database)
+}
+
+func _createDatabase(c *Client) error {
+	command := fmt.Sprintf("CREATE DATABASE %s; ", c.database)
+	query := influx.NewQuery(command, "", "ms")
+	resp, err := c.client.Query(query)
+	if err != nil {
+		log.Errorf("Error creating database:", err)
+		return err
+	}
+	if resp.Err != "" {
+		log.Errorf("Error creating database:", resp.Err)
+		return fmt.Errorf(resp.Err)
+	}
+	return nil
 }
 
 // Write sends a batch of samples to InfluxDB via its HTTP API.
